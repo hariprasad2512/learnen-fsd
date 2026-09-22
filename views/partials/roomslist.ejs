@@ -1,12 +1,6 @@
 <div class="card-grid" style="width:100%;">
   <% rooms.forEach(room => { %>
-    <div class="card" style="width: 18rem; margin: 10px;">
-      <img src="/images/lotus.jpg" class="card-img-top" alt="...">
-      <div class="card-body">
-        <h5 class="card-title"><%= room.title %></h5>
-        <a href="#" class="btn btn-primary">Enter Room</a>
-      </div>
-    </div>
+    <%- include('./room-card', { room, user }) -%>
   <% }); %>
 
 </div>

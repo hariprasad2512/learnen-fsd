@@ -22,7 +22,7 @@ btn3.addEventListener('click',()=>{
 
 function CheckOther(val){
     var element=document.getElementById('other');
-    if(val=='8')
+    if(val=='other')
       element.style.display='block';
     else  
       element.style.display='none';

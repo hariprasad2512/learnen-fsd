@@ -23,16 +23,27 @@ header {
     position: relative;
     left: 0;
     overflow-x: hidden;
-    width: 200px;
+    overflow-y: auto;
+    width: 280px;
+    min-width: 280px;
+    flex-shrink: 0;
     box-shadow: 2px 2px 5px #aaa;
+}
+
+.sidebar .sidebar-logo {
+    display: block;
+    max-width: 210px;
+    width: 100%;
+    margin: 14px auto;
 }
 
 .sidebar-links a {
     font-weight: bolder;
     display: block;
-    padding: 16px;
+    padding: 16px 20px;
     text-decoration: none;
     color: #000;
+    white-space: nowrap;
     transition: background-color 0.3s;
 }
 
@@ -46,14 +57,16 @@ header {
 }
 
 .content {
-    margin-left: 200px;
+    margin-left: 0;
     padding: 20px;
+    flex: 1;
+    min-width: 0;
 }
 
 /* Style the sidebar icons */
 .sidebar i {
   font-size: 20px;
-  margin-right: 10px;
+  margin-right: 12px;
 }
 
 h1 {
@@ -101,13 +114,17 @@ p {
 #create-room {
     background: #FBCA1F;
     font-family: inherit;
-    padding: 0.6em 1.3em;
+    padding: 0.6em 1em;
     font-weight: 900;
-    font-size: 18px;
+    font-size: 15px;
+    line-height: 1.35;
     border: 3px solid black;
     border-radius: 0.4em;
     box-shadow: 0em 0.1em;
-    margin: 10px;
+    margin: 14px 16px;
+    display: block;
+    white-space: normal;
+    text-align: center;
 }
 
 #create-room:hover {
@@ -151,6 +168,8 @@ p {
   /* room tags styling */
 
   .main{
+    flex: 1;
+    min-width: 0;
     width: 100%;
     background-color: #faedcd;
 
@@ -291,14 +310,52 @@ section:not(.hidden) {
   .scrollable-cards .card-container {
     display: flex;
     overflow-x: auto;
-    white-space: nowrap;
+    white-space: normal;
+    padding-bottom: 8px;
   }
   
   
   .scrollable-cards .card {
     flex: 0 0 auto;
-    width: 200px; 
-    margin-right: 10px; 
+    width: 18rem;
+    margin-right: 10px;
+  }
+
+  /* Unified room card: no text bleed, uniform layout */
+  .room-card {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .room-card-img {
+    height: 180px;
+    object-fit: cover;
+    width: 100%;
+  }
+
+  .room-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    white-space: normal;
+  }
+
+  .room-card-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin: 0;
+  }
+
+  .room-card-text {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 4.5em;
+    margin: 0;
   }
   
   .popup {

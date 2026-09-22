@@ -80,7 +80,7 @@
                 </div>
                 <div class="mb-3">
                     <label for="desc" class="form-label my-3">Description</label>
-                    <textarea class="form-control" name="desc" id="desc" rows="4" placeholder="Description" required></textarea>
+                    <textarea class="form-control" name="description" id="desc" rows="4" placeholder="Description" required></textarea>
                 </div>
                 <div class="mb-3">
                     <label for="syllabus" class="form-label my-3">Syllabus</label>
@@ -93,16 +93,16 @@
                 <div class="mb-3">
                     <label for="tags" class="form-label my-3">Tags</label>
                     <select class="form-select form-select-lg" name="tags" id="tags" onchange="CheckOther(this.value)" required>
-                        <%= user.userId %>
-                        <% user.Tags.forEach(element => { %>
+                        <option value="" disabled selected>Select a tag</option>
+                        <option value="wellbeing">Wellbeing</option>
+                        <option value="mechanics">Mechanics</option>
+                        <option value="security">Security</option>
+                        <option value="technology">Technology</option>
+                        <option value="safety">Safety</option>
+                        <option value="other">Other (enter below)</option>
+                        <% (user.Tags || []).forEach(element => { %>
                             <option value="<%= element %>"> <%= element %> </option>
                         <% }); %>
-                        <!-- <option selected>Select One</option>
-                        <option value=>Wellbeing</option>
-                        
-                        <option value="3">Security</option>
-                        <option value="4">Technology</option>
-                        <option value="5">Safety</option> -->
                     </select>
                     <div id="other" class="py-4">
                         <div class="mb-3">

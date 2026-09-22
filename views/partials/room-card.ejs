@@ -1,0 +1,29 @@
+<%
+  const TAG_IMAGES = {
+    wellbeing: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&w=800&q=60',
+    mechanics: 'https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?auto=format&fit=crop&w=800&q=60',
+    security: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=800&q=60',
+    technology: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=60',
+    safety: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=800&q=60'
+  };
+  const roomTags = (room.tags || []).map((t) => String(t).toLowerCase());
+  const primaryTag = Object.keys(TAG_IMAGES).find((t) => roomTags.includes(t));
+  const cardImage = primaryTag ? TAG_IMAGES[primaryTag] : '/images/lotus.jpg';
+  const uid = String(user && user._id);
+  const isMember = (room.participants || []).some((p) => {
+    const pid = p && p.user ? String(p.user._id || p.user) : '';
+    return pid && pid === uid;
+  });
+%>
+<div class="card room-card" style="width: 18rem; margin: 10px;">
+  <img src="<%= cardImage %>" class="card-img-top room-card-img" alt="<%= room.title %>" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='/images/lotus.jpg';">
+  <div class="card-body room-card-body">
+    <h5 class="card-title room-card-title"><%= room.title %></h5>
+    <p class="card-text room-card-text"><%= room.description %></p>
+    <% if (isMember) { %>
+      <a href="/room/<%= room._id %>" class="btn btn-success">Enter Room</a>
+    <% } else { %>
+      <a href="/join/<%= room._id %>" class="btn btn-primary">Join Room</a>
+    <% } %>
+  </div>
+</div>

@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express')
 const path = require('path')
 const app = express()
@@ -9,10 +10,18 @@ const multer = require('multer');
 const session = require('express-session');
 // Set up middleware to handle form data
 app.use(multer().any());
-const functions = require('firebase-functions');
+let functions;
+try {
+    functions = require('firebase-functions');
+} catch (e) {
+    // firebase-functions is optional for local / Render runs
+    functions = null;
+}
 
-url = 'mongodb+srv://Cluster56859:Hari123@cluster56859.rute9cj.mongodb.net/Learnen'
-mongoose.connect(url)
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://Cluster56859:Hari123@cluster56859.rute9cj.mongodb.net/Learnen';
+mongoose.connect(MONGODB_URI).catch(err => {
+    console.error('MongoDB initial connection error:', err.message);
+});
 
 
 const User = require('./models/user');
@@ -24,7 +33,7 @@ const { log } = require('console')
 const { redirect } = require('express/lib/response')
 
 app.use(session({
-    secret: 'your-secret-key',
+    secret: process.env.SESSION_SECRET || 'your-secret-key',
     resave: false,
     saveUninitialized: false,
     cookie: { maxAge: 60 * 60 * 1000 },
@@ -271,55 +280,46 @@ app.post('/changepassword', (req, res) => {
 })
 
 app.get('/room/:id', requireLogin, async (req, res) => {
-    const user = req.session.user;
-    const room = await Room.findById(req.params.id);
-    const usertable = await User.find({});
+    try {
+        const user = req.session.user;
+        const room = await Room.findById(req.params.id);
+        await User.find({});
 
-    if (!room) {
-        res.redirect('/dashboard');
-    } else {
-        const isParticipant = room.participants.some(
-            participant => participant._id.toString() === user._id.toString()
+        if (!room) {
+            res.redirect('/dashboard');
+            return;
+        }
+        const uidStr = String(user._id);
+        const isParticipant = (room.participants || []).some((participant) => {
+            if (!participant || !participant.user) return false;
+            const pid = participant.user._id ? String(participant.user._id) : String(participant.user);
+            return pid === uidStr;
+        });
+        const mentorId = room.mentor && room.mentor._id ? String(room.mentor._id) : String(room.mentor || '');
+        const isMentor = mentorId === uidStr;
+
+        const participantDocs = await Promise.all(
+            (room.participants || []).map((p) => User.findById(p.user && p.user._id ? p.user._id : p.user))
         );
-        const isMentor = user._id.toString() === room.mentor._id.toString();
-        
-        let list = []
-        let assignmentlist = []
-        let resourcelist = []
-        var populateList = new Promise((resolve, reject) => {
-            room.participants.forEach(async (participant, index, array) => {
-                const value = await User.findById(participant.user);
-                list.push(value.userId);
-                if(index === array.length-1) resolve()
-            });
+        const list = participantDocs.filter(Boolean).map((u) => u.userId);
+        const assignmentDocs = await Promise.all(
+            (room.assignments || []).map((a) => Assignment.findById(a && a._id ? a._id : a))
+        );
+        const resourceDocs = await Promise.all(
+            (room.resources || []).map((r) => Resource.findById(r && r._id ? r._id : r))
+        );
+        res.render('Room', {
+            user,
+            room,
+            isParticipant,
+            isMentor,
+            participantList: list,
+            assignments: assignmentDocs.filter(Boolean),
+            resources: resourceDocs.filter(Boolean),
         });
-        
-        var populateassignmentlist = new Promise((resolve, reject) => {
-            console.log("assignmentin");
-            room.assignments.forEach(async (assignment,index,array)=>{
-                const value = await Assignment.findById(assignment);
-                assignmentlist.push(value);
-                if(index === array.length-1) resolve()
-            })
-        });
-
-        
-        var populateresourcelist = new Promise((resolve, reject) => {
-            console.log("resourcein");
-            room.resources.forEach(async (resource,index,array)=>{
-                const value = await Resource.findById(resource);
-                resourcelist.push(value);
-                if(index === array.length-1) resolve()
-            })
-        });
-
-        populateList.then(() => {
-            populateassignmentlist.then(()=>{
-                populateresourcelist.then(()=>{
-                    res.render('Room', { user, room, isParticipant, isMentor ,participantList: list , assignments:assignmentlist,resources:resourcelist});
-                })
-            })
-        })
+    } catch (err) {
+        console.error(err);
+        res.redirect('/dashboard');
     }
 });
 
@@ -390,43 +390,44 @@ app.post('/submit-resource/:id', async (req, res) => {
 
 
 app.post('/createroom', requireLogin, async (req, res) => {
-    const user = req.session.user;
-    const { title, description, tags, syllabus } = req.body;
+    const sessionUser = req.session.user;
+    const { title, tags, others, syllabus } = req.body;
+    const description = req.body.description || req.body.desc || '';
 
-    const newRoom = new Room({
-
-        title: title,
-        description: description,
-        participants: [{
-          user: user,
-          notes: []
-        }],
-        syllabus: "",
-        tags: [tags],
-        assignments: [], // Add the assignments field
-        resources: [], // Add the resources field
-        mentor: user
-    });
+    const rawTag = (others && others.trim()) || tags || '';
+    const cleanTag = String(rawTag).trim().toLowerCase();
+    const ALLOWED_TAGS = ['wellbeing', 'mechanics', 'security', 'technology', 'safety'];
+    const finalTag = ALLOWED_TAGS.includes(cleanTag) ? cleanTag : (cleanTag || 'technology');
 
     try {
-        user.Created_Room.push(newRoom);
-
-        if (newRoom.participants) {  // check if Participants array exists
-            newRoom.participants.push({ user: user, notes: [] });
-        } else {
-            newRoom.participants = [{ user: user, notes: [] }];
+        const dbUser = await User.findById(sessionUser._id);
+        if (!dbUser) {
+            res.redirect('/dashboard');
+            return;
         }
 
-        con.collection('rooms-studies').insertOne(newRoom, err=>{
-            if(err) throw err;
-            console.log("Room Created");
-        })
+        const newRoom = new Room({
+            title: title,
+            description: description,
+            participants: [{
+              user: dbUser._id,
+              notes: []
+            }],
+            syllabus: typeof syllabus === 'string' ? syllabus : "",
+            tags: [finalTag],
+            assignments: [],
+            resources: [],
+            mentor: dbUser._id
+        });
 
-        // await newRoom.save();
-        
+        await newRoom.save();
 
-        // Log the newly created room to the console
-        console.log('New room:', newRoom);
+        dbUser.Created_Room = dbUser.Created_Room || [];
+        dbUser.Created_Room.push(newRoom._id);
+        await dbUser.save();
+        req.session.user = dbUser.toObject ? dbUser.toObject() : dbUser;
+
+        console.log('New room:', newRoom._id, finalTag);
 
         res.redirect(`/room/${newRoom._id}`);
     } catch (err) {
@@ -502,7 +503,13 @@ app.get('/join/:id', requireLogin, async (req, res) => {
         }
 
         // Check if user is already a participant in the room
-        const isParticipant = room.participants.find(participant => participant.user && participant.user.equals(userId));
+        // (handles ObjectId, string, and legacy whole-object shapes)
+        const uidStr = String(userId);
+        const isParticipant = (room.participants || []).find(participant => {
+            if (!participant || !participant.user) return false;
+            const pid = participant.user._id ? String(participant.user._id) : String(participant.user);
+            return pid === uidStr;
+        });
         if (isParticipant) {
             console.log('participant')
             res.redirect(`/room/${room._id}`);
@@ -516,8 +523,15 @@ app.get('/join/:id', requireLogin, async (req, res) => {
 
         // Add room to the joined_rooms list of the user
         try{
-            user.Joined_Room.push(room);
-            await user.save();
+            if (!user) {
+                console.log('join: user not found', userId);
+            } else {
+                user.Joined_Room = user.Joined_Room || [];
+                const alreadyJoined = user.Joined_Room.some((r) => String(r._id || r) === String(room._id));
+                if (!alreadyJoined) user.Joined_Room.push(room._id);
+                await user.save();
+                req.session.user = user;
+            }
         }
         catch(err){
             console.log('error!! join room invalid')
@@ -601,8 +615,8 @@ app.post('/submit-form', requireLogin, (req, res) => {
     const transporter = nodemailer.createTransport({
         service: "gmail",
         auth: {
-            user: "user.learnen@gmail.com",
-            pass: "ypzqhkpbtowzmedn"
+            user: process.env.EMAIL_USER || "user.learnen@gmail.com",
+            pass: process.env.EMAIL_PASS || "ypzqhkpbtowzmedn"
         }
     });
 
@@ -656,8 +670,8 @@ app.post('/feedback', (req, res) => {
     const transporter = nodemailer.createTransport({
         service: "gmail",
         auth: {
-            user: "user.learnen@gmail.com",
-            pass: "ypzqhkpbtowzmedn"
+            user: process.env.EMAIL_USER || "user.learnen@gmail.com",
+            pass: process.env.EMAIL_PASS || "ypzqhkpbtowzmedn"
         }
     });
 
@@ -682,4 +696,15 @@ app.post('/feedback', (req, res) => {
     });
 })
 
-exports.app = functions.https.onRequest(app)
+const PORT = process.env.PORT || 3000;
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log(`Learnen running at http://localhost:${PORT}`);
+    });
+}
+
+module.exports = app;
+
+if (functions && functions.https && typeof functions.https.onRequest === 'function') {
+    exports.app = functions.https.onRequest(app);
+}
